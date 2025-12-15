@@ -1,12 +1,15 @@
-# Virtual environment
+# Data outputs / caches
+data/
+*.csv
+
+# Virtual env + secrets
 venv/
+.env
 
 # Python cache
 __pycache__/
 *.pyc
 
-# Environment variables
-.env
-
-# OS junk
+# macOS
 .DS_Store
+
