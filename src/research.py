@@ -1,10 +1,12 @@
 """Snapshot acquisition and development-only research entry point."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
 from .baseline import walk_forward
 from .ledger import forecast_ledger
+from .execution import DEFAULT_SCENARIOS, simulate
 from .snapshot import acquire, development_only, load_snapshot, save_snapshot
 
 
@@ -29,12 +31,43 @@ def main():
     ledger.add_argument("--test-size", type=int, default=30)
     ledger.add_argument("--min-calibration", type=int, default=30)
     ledger.add_argument("--output", type=Path, required=True)
+    execute = sub.add_parser("simulate")
+    execute.add_argument("directory", type=Path)
+    execute.add_argument("--ledger", type=Path, required=True)
+    execute.add_argument("--as-of", required=True)
+    execute.add_argument("--window-start", required=True)
+    execute.add_argument("--terminal-open", required=True)
+    execute.add_argument("--initial-quote", type=float, default=1000.)
+    execute.add_argument("--scenarios", type=Path, help="Predetermined JSON list of named cost/threshold scenarios")
+    execute.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "acquire":
         from .data import _make_exchange
         frame, quality = acquire(_make_exchange(), start=args.start, end=args.end, as_of=args.as_of)
         result = save_snapshot(args.directory, frame, start=args.start, end=args.end,
                                as_of=args.as_of, acquisition=quality)
+    elif args.command == "simulate":
+        frame, manifest = load_snapshot(args.directory)
+        payload = args.ledger.read_bytes()
+        frozen = json.loads(payload)
+        if frozen.get("schema") != 1 or frozen.get("snapshot_sha256") != manifest["sha256"]:
+            raise ValueError("Frozen ledger must reference this exact snapshot")
+        if frozen["protocol"]["lag_seconds_assumed"] != manifest["availability_lag_seconds_assumed"]:
+            raise ValueError("Ledger/snapshot availability assumption differs")
+        scenarios = json.loads(args.scenarios.read_text()) if args.scenarios else DEFAULT_SCENARIOS
+        result = simulate(frame, frozen["ledger"], holdout_start=frozen["protocol"]["holdout_start"],
+                          as_of=args.as_of, window_start=args.window_start, terminal_open=args.terminal_open,
+                          lag_seconds=manifest["availability_lag_seconds_assumed"],
+                          initial_quote=args.initial_quote, scenarios=scenarios)
+        result["snapshot_manifest"] = manifest
+        result["forecast_report_sha256"] = hashlib.sha256(payload).hexdigest()
+        result["forecast_code_sha256"] = frozen["code_sha256"]
+        result["data_kind"] = frozen["source_kind"]
+        with args.output.open("x", encoding="utf-8") as stream:
+            json.dump(result, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+        print(json.dumps({"output": str(args.output), "accepted_signals": result["accepted_signals"]}))
+        return result
     elif args.command == "ledger":
         frame, manifest = load_snapshot(args.directory)
         result = forecast_ledger(frame, holdout_start=args.holdout_start, as_of=args.as_of,

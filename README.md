@@ -116,3 +116,9 @@ Historical candle availability is assumed, not historically verified.
 The [development forecast ledger](docs/FORECAST_LEDGER.md) adds fixed purged
 walk-forward blocks, past-OOF-only probability calibration, explicit warm-up,
 paired baseline scoring and row-level timing via `python -m src.research ledger`.
+
+The [offline execution protocol](docs/EXECUTION_PROTOCOL.md) adds self-financing
+long/cash simulation, next-permitted-open timing, explicit fee/slippage and
+same-window cash/buy-and-hold comparisons. The current forecast price horizon
+has elapsed by that daily-open proxy; simulated accounting does not validate
+an executable forecasting edge.
