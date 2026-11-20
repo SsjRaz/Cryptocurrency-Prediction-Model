@@ -90,3 +90,34 @@ validation, full dependency locking, large-data performance, block uncertainty,
 calibration stability under regime/model drift and execution economics.
 Calibrator training uses probabilities from older expanding models; this
 avoids leakage but does not guarantee transfer or calibration improvement.
+
+## Milestone 3 pre-change verification and result
+
+Reverified clean branch at 0ddeb593a87f44625a2fc6abb918311cb293a813,
+prior PR/main remote refs unchanged; no new repo instructions found. Baseline
+42 passed in 3.99s on Python 3.12. New branch feat/offline-execution-simulator
+starts at that exact PR #3 head. No prior PR branch rewritten.
+
+Adds an offline, quote/base self-financing simulator over frozen probabilities,
+strictly subsequent daily-open proxy, shared benchmark window, explicit rejected
+order statuses, transition-only costs and terminal liquidation. Default cost
+scenarios are predetermined, with a common 0.55 threshold and no ranking.
+Full semantics and limitations: EXECUTION_PROTOCOL.md.
+
+Synthetic checks total 67 passing in the final local verification; 25 added cases cover deterministic toy transitions and
+persistence, zero/positive/extreme costs, fee/slippage wealth reconciliation,
+no trades, terminal rules, out-of-window orders, gaps/missing/duplicate orders,
+causality and future mutation, exact-midnight strict timing, frozen-ledger
+holdout poisoning integration and CLI snapshot binding/exclusive output, observed-outcome independence, invalid
+initial cash and terminal holdout rejection.
+External anyio pytest deprecation warning persists. No market scores exist.
+
+The forecast's original target-close boundary is at the first allowed daily-open
+entry under the 60-second availability assumption: entry lags decision by
+86,340 seconds. This is explicitly counted/reported, not hidden with a new label
+or tuned horizon. Execution-aligned forecasting remains a future design task.
+
+User-requested strict 2020–2024 development snapshot is not yet available.
+No repeated DNS probe or network workaround. Real provider/fill validation,
+exchange size constraints, intraday risk, dependency locking, uncertainty and
+honest untouched final evaluation remain outstanding. Final holdout unscored.
