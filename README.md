@@ -1,21 +1,105 @@
-# Crypto Prediction Model (Restart) — V1
+# Bitcoin Direction Research Baseline
 
-This repository is a clean restart of my crypto prediction project to rebuild it with a clear, testable architecture.
+A reproducible **research-only** Bitcoin next-day direction model. It estimates
+`P(next UTC daily candle closes above the latest completed daily candle)`.
 
-## V1 Goal (BTC Only)
-Predict whether Bitcoin’s price direction will be **UP or DOWN over the next 24 hours**, and output a **probability** (P(up)).
+The project intentionally starts with a transparent logistic-regression baseline,
+rather than optimizing for an impressive but potentially leaked backtest score.
+It does **not** place trades or establish a profitable trading strategy.
 
-## Label Definition (Daily Close)
-Because crypto trades 24/7, “daily close” is defined using **UTC daily candles** from the data provider:
-- UP (1) if next day UTC close > current day UTC close
-- DOWN (0) otherwise
+## Implemented
 
-## Current Scope
-- BTC only (ETH/SOL will be added after V1 is stable)
-- Start with a simple baseline model (Logistic Regression)
-- Use time-based evaluation (train on earlier data, test on later data)
+- Public Coinbase `BTC/USD` OHLCV ingestion using CCXT (existing data pipeline).
+- UTC daily candle validation: rejects gaps, duplicate timestamps, invalid prices,
+  negative volume and inconsistent high/low values.
+- Drops the **ongoing / incomplete** UTC candle for evaluation and forecasting.
+- Features from past and present completed candles only: momentum, realized
+  volatility, candle body/range, moving-average deviation, and relative volume.
+- Next-day UP/DOWN labels; never labels the last candle.
+- Expanding-window cross-validation with a one-row embargo so feature/target
+  times do not overlap training and test boundaries.
+- Training-fold-only standardization and an identical-window historical-prior
+  baseline; accuracy, Brier score and log loss for both models.
+- A separate latest-candle probability fit using all available, fully known labels.
+- Deterministic synthetic-data regression tests and GitHub Actions CI.
 
-## Planned Future Additions
-- Stronger models (XGBoost / LightGBM)
-- More market features (volatility, momentum, volume spikes, etc.)
-- Sentiment features (Twitter/Reddit) after the core pipeline works
+## Install
+
+Python 3.11 or newer:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+On Windows, activate the virtual environment with `.venv\\Scripts\\activate`.
+
+## Run
+
+To download public Coinbase daily data and run a fresh analysis:
+
+```bash
+python -m src.main --mode both --output reports/btc-baseline.json
+```
+
+For a reproducible, **offline** replay from your own UTC daily OHLCV CSV
+(columns: `timestamp,open,high,low,close,volume`, with a row timestamp at
+**00:00 UTC candle start**):
+
+```bash
+python -m src.main --csv data/raw/btc_usd_1d.csv --as-of 2026-01-01T00:00:00Z --splits 5
+```
+
+Run only one stage with `--mode backtest` or `--mode forecast`.
+
+The exchange fetch is uncached by default to avoid returning a prediction
+based on stale local candles. If you use the underlying `src.data` cache
+helpers directly, delete or refresh old CSV snapshots yourself.
+
+## Interpretation
+
+A feature row at 2026-01-01T00:00Z corresponds to the candle running until
+2026-01-02T00:00Z. **Only after** that close is the feature row fully known.
+The model predicts whether the **following** candle, which closes at
+2026-01-03T00:00Z, finishes above the preceding close.
+
+The model's probability is not a calibrated guarantee. It must be compared to
+the historical-prior baseline on unseen data. Even outperforming that
+baseline would not prove tradable alpha without transaction costs, realistic
+execution, regime testing, and multiple truly held-out periods. Do not use
+these predictions as investment advice.
+
+## Current limitations and roadmap
+
+1. **Historical data robustness:** Original CCXT pagination loads a multi-year
+   history but does not yet track data-provider revisions, split-aware caches,
+   or multi-exchange differences. Missing bars fail validation instead of being
+   silently forward-filled.
+2. **Time-series research:** Add an untouched final holdout, probabilistic
+   calibration diagnostics, baselines such as always-up and momentum,
+   and uncertainty intervals / market-regime analysis.
+3. **Evaluation realism:** Add transaction costs and slippage in a separate
+   paper-trading simulator; compare after-cost results to no-trade and passive
+   exposure. No live order routing by default.
+4. **Operational readiness:** Add explicit raw-data provenance (exchange,
+   timeframe, retrieval date), stable model artifacts, drift monitoring, and
+   periodic re-evaluation.
+5. **Scope:** Expand to ETH/SOL only after BTC evaluation and data quality are
+   credible. Avoid headline accuracy as the sole success metric.
+
+## Project layout
+
+```text
+src/
+  data.py       Exchange ingestion
+  config.py     Exchange and timeframe options
+  features.py   Data integrity, UTC completion, point-in-time features and labels
+  baseline.py   Chronological validation, logistic model and prior baseline
+  main.py       JSON-report CLI
+tests/
+  test_baseline.py
+.github/workflows/
+  tests.yml
+```
