@@ -238,3 +238,9 @@ protocols/final-runner-receipt.json fingerprints this clean reference runtime
 and final source bytes before any unblinding. Human/infrastructure protection
 is still required: deleting local markers or changing directories/hashes can
 bypass guards. No global one-evaluation guarantee is claimed.
+
+Initial remote run 44812280660 at 00f7e705 failed before scheduling jobs:
+plain YAML scalar contained the colon-space in --only-binary=:all:. Local
+YAML parsing reproduced the exact error at workflow line 33. Corrected the
+install command to a block scalar and parsed/checked both jobs locally. No
+runner, dependency lock or frozen receipt source changed in this correction.
