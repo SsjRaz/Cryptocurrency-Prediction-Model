@@ -13,12 +13,14 @@ from pathlib import Path
 import pandas as pd
 
 from .baseline import latest_probability, walk_forward
+from .snapshot import development_only
 
 
 def main(argv: list[str] | None = None) -> dict:
     parser = argparse.ArgumentParser(
         description="Leakage-aware Bitcoin next-day direction baseline (research only)."
     )
+    parser.add_argument("--holdout-start", required=True, help="Reserved final holdout UTC midnight; all modes exclude these bars")
     parser.add_argument("--csv", type=Path, help="Use local UTC daily OHLCV CSV rather than exchange API")
     parser.add_argument("--as-of", help="UTC cut-off timestamp for reproducible replay (ISO 8601 with offset)")
     parser.add_argument("--splits", type=int, default=5, help="Expanding time-series evaluation folds")
@@ -36,10 +38,13 @@ def main(argv: list[str] | None = None) -> dict:
         data = get_btc_daily(cache=False)
         source = "coinbase:BTC/USD:1d"
 
-    cutoff = pd.Timestamp(args.as_of) if args.as_of is not None else None
+    cutoff = pd.Timestamp(args.as_of) if args.as_of is not None else pd.Timestamp.now(tz="UTC")
+    data = development_only(data, holdout_start=args.holdout_start, as_of=cutoff)
     report = {
         "source": source,
         "research_only": True,
+        "holdout_start": args.holdout_start,
+        "evaluation_scope": "development only; historical availability assumed",
         "note": "Not investment advice. Evaluate against held-out periods and transaction costs.",
     }
     if args.mode in ("both", "backtest"):

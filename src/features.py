@@ -31,6 +31,8 @@ def prepare_daily(frame: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("No daily OHLCV rows provided")
 
     data = frame.loc[:, ["timestamp", "open", "high", "low", "close", "volume"]].copy()
+    if data["timestamp"].map(lambda value: pd.Timestamp(value).tzinfo is None).any():
+        raise ValueError("Daily timestamps must be timezone aware")
     data["timestamp"] = pd.to_datetime(data["timestamp"], utc=True, errors="raise")
     for name in ("open", "high", "low", "close", "volume"):
         data[name] = pd.to_numeric(data[name], errors="raise")
@@ -42,7 +44,8 @@ def prepare_daily(frame: pd.DataFrame) -> pd.DataFrame:
     if not (data["timestamp"].dt.hour.eq(0) &
             data["timestamp"].dt.minute.eq(0) &
             data["timestamp"].dt.second.eq(0) &
-            data["timestamp"].dt.microsecond.eq(0)).all():
+            data["timestamp"].dt.microsecond.eq(0) &
+            data["timestamp"].dt.nanosecond.eq(0)).all():
         raise ValueError("Daily candle timestamps must start at 00:00 UTC")
     if (data["timestamp"].diff().dropna() != pd.Timedelta(days=1)).any():
         raise ValueError("Missing or irregular UTC daily candles; refusing to bridge gaps")
