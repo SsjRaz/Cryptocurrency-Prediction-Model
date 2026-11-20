@@ -60,10 +60,11 @@ file reads/validation. Known existing attempts are rejected by the CLI before
 opening outcome files; atomic exclusive creation prevents two callers from
 both scoring in the same state location. Concurrent callers could both read
 before one wins reservation. Failures after reservation leave the attempt marked;
-there is no automatic reset/retry. A separate completion record hashes the core
-API report; CLI adds raw-file metadata afterward. An output collision or failure
-can therefore leave a completed core computation without a CLI output. Preserve
-markers and inspect the state instead of retrying automatically.
+there is no automatic reset/retry. The requested report includes raw-file
+metadata before it is written and fsynced; a separate completion record is
+created only afterward and hashes those exact bytes. A crash can leave a report
+without completion. Preserve both artifacts and inspect the state rather than
+retrying automatically.
 
 This is **not** a global one-unblind mechanism: removing records, choosing a
 new state directory, changing accepted model hashes or modifying code can bypass
@@ -166,3 +167,50 @@ Use `python -m src.research final-freeze --help`, final-predict --help and
 final-score --help for precise arguments. Full CLI integration tests execute
 these only on generated synthetic fixtures, including repeated-attempt rejection.
 This implementation does not itself authorize a real final run.
+
+## Independent audit corrections: authenticated buffers and durable reports
+
+Unblinding remains **blocked pending independent re-review**, including any
+additional issues still under audit. The previous implementation had two
+verified check/use gaps: final-score and load_snapshot hashed a CSV read and
+then reopened the pathname for pandas. Both now parse exactly the authenticated
+byte buffer with io.BytesIO, never a second pathname read. Thus changing even
+the last three outcome-only rows after hashing cannot change the scored prices.
+The canonical frame identity used downstream is derived only from those verified
+bytes, not a fresh read. Associated source/runtime/protocol receipts are checked;
+no real data was routed or recovered to exercise these changes.
+
+Final-freeze now requires independently retained
+`--expected-development-csv-sha256`, `--development-pin` and
+`--expected-development-pin-sha256` in addition to the receipt/protocol hash.
+The pin uses canonical JSON hashing. Production mode binds its hash to the
+receipt's approved reference at `protocols/approved-development.json`: schema 1,
+Coinbase BTC/USD 1d, [2020-01-01,2025-01-01), exactly 1827 continuous UTC midnight
+candles, 60-second assumed lag, historical_publication_verified false, CSV SHA256
+77563ae0f45a06ae3f8b63d925543978a8c05e98c9ce4156d6656f2ac3064d8e. The loader checks
+all supplied reference fields (including additional archived fields if pinned),
+exact CSV column schema, cadence/coverage, source identity, availability and
+valid timezone-aware acquisition/as-of metadata. A new self-consistent local
+manifest cannot replace the independent CSV/reference pins.
+
+Reusable synthetic inputs require **explicit** --synthetic-development-pin and
+their own independent reference/CSV hashes. That mode is recorded in the frozen
+bundle; it is not production data approval. The lower-level DataFrame freeze API
+also requires an explicit expected frame hash. Computing replacement pins from
+an arbitrary new file defeats independent review; hashes are not access control.
+
+Completion semantics have also changed: attempt file and state directory are
+flushed/fsynced before metrics. The scorer itself writes the exact requested
+final report exclusively, including raw outcome-file identity, flushes/fsyncs
+report and parent directory, and only then writes/fsyncs the completion record.
+The completion record binds both exact report-file bytes and canonical report
+content. The CLI does not rewrite or add metadata after completion. Write/fsync
+failure leaves an attempt with **no completion**; a partial or durable report
+may exist. Preserve it and state, obtain independent recovery review, and verify
+hashes rather than recomputing/rescoring automatically. Report and completion
+are not a cross-filesystem atomic transaction; a crash after durable report but
+before completion is still possible. The local-marker bypass limitations remain.
+
+Mutable-path, tail-outcome mutation, unapproved-history, manifest-field and
+report write/fsync regressions use synthetic data only. The exact maturity
+cutoff, 361-feature/364-price support, dates and statistical criteria are unchanged.

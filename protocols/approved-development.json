@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "source": "coinbase",
+  "symbol": "BTC/USD",
+  "timeframe": "1d",
+  "start": "2020-01-01T00:00:00+00:00",
+  "end_exclusive": "2025-01-01T00:00:00+00:00",
+  "rows": 1827,
+  "availability_lag_seconds_assumed": 60,
+  "historical_publication_verified": false,
+  "sha256": "77563ae0f45a06ae3f8b63d925543978a8c05e98c9ce4156d6656f2ac3064d8e"
+}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from pathlib import Path
 
@@ -93,18 +94,32 @@ def save_snapshot(directory, frame, *, start, end, as_of, lag_seconds=60, acquis
     return manifest
 
 
-def load_snapshot(directory):
+def load_snapshot(directory, *, expected_csv_sha256=None, expected_manifest=None):
     path = Path(directory)
     manifest = json.loads((path / "manifest.json").read_text())
     payload = (path / "candles.csv").read_bytes()
-    if hashlib.sha256(payload).hexdigest() != manifest["sha256"]:
+    actual_sha256 = hashlib.sha256(payload).hexdigest()
+    if expected_csv_sha256 is not None and actual_sha256 != expected_csv_sha256:
+        raise ValueError("Independently pinned snapshot CSV mismatch")
+    if expected_manifest is not None:
+        for key, value in expected_manifest.items():
+            if manifest.get(key) != value:
+                raise ValueError(f"Reference manifest mismatch: {key}")
+    if actual_sha256 != manifest["sha256"]:
         raise ValueError("Snapshot checksum mismatch")
     if (manifest["schema"], manifest["source"], manifest["symbol"], manifest["timeframe"]) != (1, "coinbase", "BTC/USD", "1d"):
         raise ValueError("Unsupported snapshot identity")
-    frame = prepare_daily(pd.read_csv(path / "candles.csv"))
+    # Parse exactly the bytes authenticated above; never reopen a mutable path.
+    raw = pd.read_csv(io.BytesIO(payload))
+    if list(raw.columns) != ["timestamp", "open", "high", "low", "close", "volume"]:
+        raise ValueError("Unexpected snapshot CSV schema")
+    frame = prepare_daily(raw)
     expected = pd.Series(pd.date_range(midnight(manifest["start"]), midnight(manifest["end_exclusive"]), freq="D", inclusive="left"), name="timestamp")
     if len(frame) != manifest["rows"] or not frame.timestamp.equals(expected):
         raise ValueError("Snapshot coverage mismatch")
+    utc(manifest["acquired_at"])
+    if manifest.get("historical_publication_verified") is not False:
+        raise ValueError("Unsupported publication provenance")
     lag = manifest["availability_lag_seconds_assumed"]
     if lag < 0 or midnight(manifest["end_exclusive"]) + pd.Timedelta(seconds=lag) > utc(manifest["as_of"]):
         raise ValueError("Snapshot availability mismatch")

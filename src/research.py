@@ -1,6 +1,7 @@
 """Snapshot acquisition and development-only research entry point."""
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path
 
@@ -10,8 +11,8 @@ from .execution import DEFAULT_SCENARIOS, simulate
 from .targets import CLOSE_TARGET, OPEN_TARGET
 from .uncertainty import paired_uncertainty
 from .protocol import protocol_receipt, audit_holdout_timing
-from .final_runner import digest, frame_digest, freeze_model, predict_features, score_once, check_score_seals
-from .snapshot import acquire, development_only, load_snapshot, save_snapshot
+from .final_runner import digest, frame_digest, freeze_model, predict_features, score_once, check_score_seals, check_freeze_receipt
+from .snapshot import acquire, development_only, load_snapshot, save_snapshot, midnight
 
 
 def main():
@@ -61,6 +62,10 @@ def main():
     final_freeze.add_argument("directory", type=Path)
     final_freeze.add_argument("--receipt", type=Path, required=True)
     final_freeze.add_argument("--expected-protocol-sha256", required=True)
+    final_freeze.add_argument("--expected-development-csv-sha256", required=True)
+    final_freeze.add_argument("--development-pin", type=Path, required=True)
+    final_freeze.add_argument("--synthetic-development-pin", action="store_true", help="Explicit non-production fixture pin; never infer approval from a new manifest")
+    final_freeze.add_argument("--expected-development-pin-sha256", required=True)
     final_freeze.add_argument("--output", type=Path, required=True)
     final_predict = sub.add_parser("final-predict", help="Feature-only input; no labels or scores")
     final_predict.add_argument("--freeze", type=Path, required=True)
@@ -82,9 +87,25 @@ def main():
         if args.output.exists():
             raise FileExistsError(args.output)
         if args.command == "final-freeze":
-            data, manifest = load_snapshot(args.directory)
-            result = freeze_model(data, json.loads(args.receipt.read_text()), expected_protocol_sha256=args.expected_protocol_sha256)
+            reference = json.loads(args.development_pin.read_bytes())
+            if digest(reference) != args.expected_development_pin_sha256 or reference["sha256"] != args.expected_development_csv_sha256:
+                raise ValueError("Independent development pin hash mismatch")
+            required = {"schema", "source", "symbol", "timeframe", "start", "end_exclusive", "rows", "availability_lag_seconds_assumed", "historical_publication_verified", "sha256"}
+            if not required.issubset(reference):
+                raise ValueError("Incomplete development reference manifest")
+            receipt = json.loads(args.receipt.read_bytes())
+            check_freeze_receipt(receipt, expected_protocol_sha256=args.expected_protocol_sha256)
+            if not args.synthetic_development_pin and args.expected_development_pin_sha256 != receipt["approved_development_reference_sha256"]:
+                raise ValueError("Unapproved production development reference; synthetic fixtures require explicit mode")
+            if reference["end_exclusive"] != midnight(receipt["protocol"]["development_end_exclusive"]).isoformat() or reference["availability_lag_seconds_assumed"] != receipt["protocol"]["lag_seconds_assumed"]:
+                raise ValueError("Development reference and protocol mismatch")
+            data, manifest = load_snapshot(args.directory, expected_csv_sha256=args.expected_development_csv_sha256, expected_manifest=reference)
+            result = freeze_model(data, receipt, expected_protocol_sha256=args.expected_protocol_sha256,
+                                  expected_development_frame_sha256=frame_digest(data))
             result["development_snapshot_manifest"] = manifest
+            result["development_reference"] = reference
+            result["development_reference_sha256"] = args.expected_development_pin_sha256
+            result["development_pin_mode"] = "synthetic_explicit" if args.synthetic_development_pin else "approved_production"
         elif args.command == "final-predict":
             import pandas as pd
             result = predict_features(json.loads(args.freeze.read_text()), pd.read_csv(args.features),
@@ -99,14 +120,15 @@ def main():
             payload = args.outcomes.read_bytes()
             if hashlib.sha256(payload).hexdigest() != args.expected_outcome_file_sha256:
                 raise ValueError("Outcome file hash mismatch")
-            data = pd.read_csv(args.outcomes)
+            data = pd.read_csv(io.BytesIO(payload))
             result = score_once(bundle, sealed, data,
                                 expected_freeze_sha256=args.expected_freeze_sha256, expected_prediction_sha256=args.expected_prediction_sha256,
-                                expected_outcomes_sha256=frame_digest(data), state_directory=args.state_directory, acknowledge_unblind=True)
-            result["outcome_file_sha256"] = args.expected_outcome_file_sha256
-        with args.output.open("x", encoding="utf-8") as stream:
-            json.dump(result, stream, indent=2, allow_nan=False)
-            stream.write("\n")
+                                expected_outcomes_sha256=frame_digest(data), state_directory=args.state_directory, acknowledge_unblind=True, report_path=args.output,
+                                outcome_file_sha256=args.expected_outcome_file_sha256)
+        if args.command != "final-score":
+            with args.output.open("x", encoding="utf-8") as stream:
+                json.dump(result, stream, indent=2, allow_nan=False)
+                stream.write("\n")
         print(json.dumps({"output": str(args.output), "canonical_content_sha256": digest(result)}))
         return result
     if args.command in ("uncertainty", "protocol-receipt", "holdout-timing-preflight"):

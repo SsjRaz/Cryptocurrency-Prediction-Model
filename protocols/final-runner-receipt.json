@@ -47,18 +47,19 @@
     "reporting": "all sensitivity lengths and folds, sample exclusions and missing intervals; no winner selection or retuning after holdout",
     "before_opening": "review code/receipt and complete dependency lock; authorize one evaluation, archive holdout snapshot checksum before metrics; never alter protocol after viewing outcomes"
   },
+  "approved_development_reference_sha256": "c7e5b43316a185b401adfb59d867a3eca0b40b20baaa4fe384f487ce9d4b2eee",
   "protocol_sha256": "cb7aaaaa71ecba25fcaf180fac8681591429c026625b1f65c2b5c252e1ff719f",
   "source_sha256": {
     "baseline.py": "1119b917f5d5e9276ca15434c67078c8b921f97c4ae990f939c075f8cafbea49",
     "features.py": "4e04368a5265c80f0b04f56128d85d728eb5b64155956f0c00f7bcf3fa816f78",
-    "snapshot.py": "3c11fd817b81d5c689acc015220612280a4ac42bddee4a21d18c183b4a3ea79d",
+    "snapshot.py": "8e6988fc9d4361e2127514b37aca630ba66a22b271e1a6873cf16988f2a85c47",
     "targets.py": "65325f7a80b95d085aa61709fbb2c17516249b426c05c34105ccc991c17f7a4a",
     "ledger.py": "80f104cce584266c7fd11a57264a1b23e610bdaad975820c6d66431368863aee",
     "execution.py": "f825c234c04612dbce518570ce8e86a6ef52ad0ccf66e2e1a9b3eadaf1b9dc06",
     "uncertainty.py": "e1b841db49d63b19b6f4a0c690e91552871cfa4f5f0ad0c35449523b480063b7",
-    "protocol.py": "0514e0892424c493ce687f49fafde632f1972c5cf3deaf6308fcc6d6a6ea7161",
-    "research.py": "5fe3da8cef4881f2f13bd4a0f7ae4feaa216936c8a4886cf19296e3eaa0b8735",
-    "final_runner.py": "8bd3425cf84b6881a94346b0ec67f2cabaea02a037db266d224222bd4f7833df",
+    "protocol.py": "b5147666222fb54bfca90eaccbf6d830787f129621acbc77d3108480967924e0",
+    "research.py": "433ff90c6081daf7e27b1ae8699415a2f0dec9c45a17f8842dc169dc40e71a2c",
+    "final_runner.py": "be2720f0f3557caecbeb30ab0406dbc39c1d331975d612865811aa53c3dd3299",
     "runtime.py": "02fc283da659995d2fedba74c59287fbc71f6c31260788b532476fc1f7fe78ee"
   },
   "versions": {

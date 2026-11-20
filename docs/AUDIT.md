@@ -244,3 +244,35 @@ plain YAML scalar contained the colon-space in --only-binary=:all:. Local
 YAML parsing reproduced the exact error at workflow line 33. Corrected the
 install command to a block scalar and parsed/checked both jobs locally. No
 runner, dependency lock or frozen receipt source changed in this correction.
+
+## PR #7 independent-audit blockers, before any unblinding
+
+Continued on the existing clean feat/frozen-final-runner at c587b097, preserving
+all prior commits/branches/main. Fixed two independently identified TOCTOU gaps:
+final-score and load_snapshot now parse the exact authenticated byte buffer,
+not a reopened CSV pathname. Added explicit independent development CSV and
+reference-manifest pins; production reference is receipt-bound to the approved
+2020–2024 Coinbase BTC/USD daily bytes, with exact coverage/identity/lag. An
+explicit synthetic mode keeps fixture reuse separate from production approval.
+The lower-level freeze API requires an expected frame identity too. Receipt and
+protocol drift checks run before CLI development loading/fitting.
+
+Changed completion lifecycle: attempt and directory durable before metrics;
+requested report written exclusively and file/parent fsynced before a completion
+record is created. Completion hashes exact final report bytes/content, including
+raw outcome-file identity. Report write/fsync failures cannot claim completion;
+attempts remain for manual recovery, with no automated rescore. Local marker
+bypass and non-atomic report/completion crash windows remain documented.
+
+New synthetic regression tests swap mutable CSV paths after authentication,
+including last three outcome-only rows; verify pinned manifest fields and
+self-consistent substitute rejection; require explicit non-production mode; and
+inject report-write/fsync failures. No real 2025+ input was fetched, inspected,
+fitted or scored; no attachment transfer/recovery workaround. Holdout remains
+strictly blocked pending independent re-review and any additional audit issues.
+
+Final locked validation after audit corrections: 131 passed in 15.62s, no
+warnings. Added 12 focused regression cases; no full-runtime lock change.
+Rebuilt protocols/final-runner-receipt.json and independently checked equality
+to current protocol_receipt output, including the approved development-reference
+hash. git diff --check clean. No real holdout execution occurred.

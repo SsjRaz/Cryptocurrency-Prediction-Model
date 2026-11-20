@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -60,14 +61,20 @@ def _exact(frame, first, last):
     return data
 
 
-def freeze_model(development, receipt, *, expected_protocol_sha256):
-    """Fit only strictly pre-boundary matured labels. Never accepts holdout rows."""
+def check_freeze_receipt(receipt, *, expected_protocol_sha256):
     _check_receipt(receipt)
     if receipt["protocol_sha256"] != expected_protocol_sha256:
         raise ValueError("Protocol hash mismatch")
+
+
+def freeze_model(development, receipt, *, expected_protocol_sha256, expected_development_frame_sha256):
+    """Fit only strictly pre-boundary matured labels. Never accepts holdout rows."""
+    check_freeze_receipt(receipt, expected_protocol_sha256=expected_protocol_sha256)
     p = receipt["protocol"]
     start, _, lag, _, _ = _bounds(receipt)
     dev = prepare_daily(development)
+    if frame_digest(dev) != expected_development_frame_sha256:
+        raise ValueError("Independently pinned development frame mismatch")
     if (dev.timestamp >= start).any() or dev.timestamp.iloc[-1] != start - DAY:
         raise ValueError("Development must end at the last pre-holdout candle, with no overlap")
     freeze = start - pd.Timedelta(nanoseconds=1)
@@ -152,7 +159,7 @@ def check_score_seals(bundle, sealed, *, expected_freeze_sha256, expected_predic
 
 
 def score_once(bundle, sealed, outcomes, *, expected_freeze_sha256, expected_prediction_sha256,
-               expected_outcomes_sha256, state_directory, acknowledge_unblind=False):
+               expected_outcomes_sha256, state_directory, acknowledge_unblind=False, report_path=None, outcome_file_sha256=None):
     """Exclusive local attempt marker; deleting it/using another directory can bypass it.
 
     Failures after marker creation stay marked. No automated retry/reset and no
@@ -176,6 +183,13 @@ def score_once(bundle, sealed, outcomes, *, expected_freeze_sha256, expected_pre
     with marker.open("x", encoding="utf-8") as stream:
         json.dump({"status": "attempt_started", "freeze_sha256": expected_freeze_sha256,
                    "prediction_sha256": expected_prediction_sha256, "outcomes_sha256": expected_outcomes_sha256}, stream)
+        stream.flush()
+        os.fsync(stream.fileno())
+    attempt_directory_fd = os.open(state, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(attempt_directory_fd)
+    finally:
+        os.close(attempt_directory_fd)
     # Only after reserving the local attempt do we construct labels/metrics.
     by_time = data.set_index("timestamp").open
     rows = []
@@ -216,7 +230,30 @@ def score_once(bundle, sealed, outcomes, *, expected_freeze_sha256, expected_pre
                                       "caveat": "bucket first-trade proxy, not executable fill evidence; costs do not enter statistical success criterion"},
             "predeclared_statistical_success": bool(success),
             "interpretation": "No retuning; statistical criterion is not profitability or executable edge"}
+    if outcome_file_sha256 is not None:
+        result["outcome_file_sha256"] = outcome_file_sha256
+    destination = Path(report_path) if report_path is not None else state / "final-report.json"
+    # Completion is recorded only after the exact requested report is durable.
+    payload = (json.dumps(result, indent=2, allow_nan=False) + "\n").encode()
+    with destination.open("xb") as stream:
+        stream.write(payload)
+        stream.flush()
+        os.fsync(stream.fileno())
+    directory_fd = os.open(destination.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+    completion = {"status": "report_durable", "report_path": str(destination.resolve()),
+                  "report_file_sha256": hashlib.sha256(payload).hexdigest(),
+                  "canonical_report_sha256": digest(result), "scored_rows": len(rows)}
     with (state / (expected_freeze_sha256 + ".completed.json")).open("x", encoding="utf-8") as stream:
-        json.dump({"status": "metrics_completed", "core_report_sha256": digest(result),
-                   "scored_rows": len(rows)}, stream)
+        json.dump(completion, stream)
+        stream.flush()
+        os.fsync(stream.fileno())
+    state_fd = os.open(state, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(state_fd)
+    finally:
+        os.close(state_fd)
     return result
