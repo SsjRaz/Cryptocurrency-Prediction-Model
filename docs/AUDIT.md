@@ -57,3 +57,36 @@ row-level forecast availability and past-OOF calibration. Legacy acquisition
 remains available for compatibility but is explicitly outside verified snapshots.
 Second checkpoint calibration is deferred until the snapshot foundation can
 be exercised on permitted real development data; no holdout performance viewed.
+
+## Milestone 2 pre-change verification and result
+
+Reverified clean PR #2 branch and live refs: main 339881c, PR #1 e59266cf,
+PR #2 ec951757; baseline suite 28 passed in 2.45s. New branch
+feat/oof-forecast-ledger starts at full PR #2 SHA without changing either PR.
+
+Adds a fixed-block OOF ledger, strict label-maturity purge, distinct prior-OOF
+calibration, explicit fallbacks, paired scoring, reliability bins, code/data
+hashes and timing/fold bounds. Details and commands: FORECAST_LEDGER.md.
+Local final suite: 42 passed in 4.57s on Python 3.12 (same external anyio
+pytest deprecation warning). Added 14 synthetic cases covering holdout/future
+poisoning, appended-data forecast invariance, strict maturity ties, deterministic
+warm-up, duplicate calibration observation rejection, single-class/insufficient
+history fallbacks, independent calibration and raw-model reconstruction,
+replay availability, invalid protocol and exclusive CLI report creation.
+
+The first test run exposed an overly strict test expectation at the holdout
+close boundary and a dtype-sensitive development hash after holdout mutation.
+The boundary test now allows the last development candle to close exactly at
+the boundary; the hash normalizes numeric types before serialization. Earlier
+predictions and scores were already unchanged in that hash failure.
+
+Public 2023 development acquisition retried: same api.coinbase.com DNS failure
+before any OHLCV returned. No real snapshot, score comparison, final holdout
+score or profitability evidence. No network workaround attempted. Protocol
+uses held-out synthetic fixtures only for logic verification.
+
+Remaining: real-provider integration and historical publication/revision
+validation, full dependency locking, large-data performance, block uncertainty,
+calibration stability under regime/model drift and execution economics.
+Calibrator training uses probabilities from older expanding models; this
+avoids leakage but does not guarantee transfer or calibration improvement.

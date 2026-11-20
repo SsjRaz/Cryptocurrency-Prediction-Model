@@ -46,7 +46,8 @@ each forecast; compare logistic, historical prior and constant 0.5 using
 identical rows. Any calibrator must fit exclusively to past out-of-fold
 predictions whose labels have matured before its test block; retain uncalibrated
 results, single-class handling and paired uncertainty. Do not fit a calibrator
-on the same fold it scores. This checkpoint is not implemented yet.
+on the same fold it scores. This checkpoint is now implemented in the [development forecast ledger](FORECAST_LEDGER.md);
+real-market validation remains blocked by provider DNS access.
 
 Later: next executable prices after assumed availability, fees/slippage,
 turnover and exposure accounting, passive/no-trade comparisons, block-based

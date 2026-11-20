@@ -112,3 +112,7 @@ for strict immutable snapshots and development-only replay. Existing
 `python -m src.main` examples above now additionally require
 `--holdout-start 2025-01-01T00:00:00Z`; all modes exclude the reserved period.
 Historical candle availability is assumed, not historically verified.
+
+The [development forecast ledger](docs/FORECAST_LEDGER.md) adds fixed purged
+walk-forward blocks, past-OOF-only probability calibration, explicit warm-up,
+paired baseline scoring and row-level timing via `python -m src.research ledger`.
