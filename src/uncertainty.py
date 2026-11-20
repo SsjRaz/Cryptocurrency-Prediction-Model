@@ -33,7 +33,7 @@ def moving_block_means(values, *, block_length, replicates, seed):
 
 
 def paired_uncertainty(report, *, block_lengths=BLOCK_LENGTHS, replicates=2000,
-                       seed=SEED, gap_policy="reject"):
+                       seed=SEED, gap_policy="reject", final_domain=None):
     """Primary calibrated-minus-prior and secondary raw-minus-prior, same rows.
 
     Negative difference favors model; this conditional development diagnostic
@@ -46,12 +46,17 @@ def paired_uncertainty(report, *, block_lengths=BLOCK_LENGTHS, replicates=2000,
     boundary = midnight(report["protocol"]["holdout_start"])
     cutoff = utc(report["protocol"]["as_of"])
     target = report["protocol"]["target_name"]
+    if final_domain is not None:
+        final_start, final_end = map(utc, final_domain)
+        if report.get("evaluation_scope") != "frozen_final" or final_start != boundary or cutoff != final_end:
+            raise ValueError("Explicit frozen-final domain mismatch")
     paired = []
     seen = set()
     for row in report["ledger"]:
         stamp = midnight(row["feature_open_utc"])
         # No final-holdout outcome is accepted by this development command.
-        if stamp >= boundary or utc(row["label_exit_utc"]) > boundary or (target == "execution_open_direction" and utc(row["label_exit_utc"]) >= boundary):
+        forbidden = (stamp >= boundary or utc(row["label_exit_utc"]) > boundary or (target == "execution_open_direction" and utc(row["label_exit_utc"]) >= boundary)) if final_domain is None else (not final_start <= stamp < final_end or utc(row["label_exit_utc"]) >= final_end)
+        if forbidden:
             raise ValueError("Reserved holdout outcome in development uncertainty input")
         if row["target_name"] != target:
             raise ValueError("Mixed target scopes")
@@ -108,7 +113,7 @@ def paired_uncertainty(report, *, block_lengths=BLOCK_LENGTHS, replicates=2000,
         rows = [r for r in paired if r["fold"] == fold]
         folds.append({"fold": fold, "rows": len(rows), "first_date": rows[0]["date"], "last_date": rows[-1]["date"],
                       **{key: float(np.mean([r[key] for r in rows])) for key in comparisons}})
-    return {"target_name": target, "scope": "development; paired actually-calibrated rows only",
+    return {"target_name": target, "scope": ("development" if final_domain is None else "frozen_final") + "; paired actually-calibrated rows only",
             "population": {"input_oof": len(report["ledger"]), "paired": len(paired),
                            "excluded_warmup_or_fallback": len(report["ledger"]) - len(paired)},
             "method": "non-circular moving-block percentile interval; paired daily losses",

@@ -10,6 +10,7 @@ from .execution import DEFAULT_SCENARIOS, simulate
 from .targets import CLOSE_TARGET, OPEN_TARGET
 from .uncertainty import paired_uncertainty
 from .protocol import protocol_receipt, audit_holdout_timing
+from .final_runner import digest, frame_digest, freeze_model, predict_features, score_once, check_score_seals
 from .snapshot import acquire, development_only, load_snapshot, save_snapshot
 
 
@@ -56,7 +57,58 @@ def main():
     audit.add_argument("--receipt", type=Path, required=True)
     audit.add_argument("--expected-protocol-sha256", required=True)
     audit.add_argument("--output", type=Path, required=True)
+    final_freeze = sub.add_parser("final-freeze", help="Pre-holdout data only; no future fitting")
+    final_freeze.add_argument("directory", type=Path)
+    final_freeze.add_argument("--receipt", type=Path, required=True)
+    final_freeze.add_argument("--expected-protocol-sha256", required=True)
+    final_freeze.add_argument("--output", type=Path, required=True)
+    final_predict = sub.add_parser("final-predict", help="Feature-only input; no labels or scores")
+    final_predict.add_argument("--freeze", type=Path, required=True)
+    final_predict.add_argument("--features", type=Path, required=True)
+    final_predict.add_argument("--expected-freeze-sha256", required=True)
+    final_predict.add_argument("--output", type=Path, required=True)
+    final_score = sub.add_parser("final-score", help="Unblind only after separately authorized; local attempt marker")
+    final_score.add_argument("--freeze", type=Path, required=True)
+    final_score.add_argument("--predictions", type=Path, required=True)
+    final_score.add_argument("--outcomes", type=Path, required=True)
+    final_score.add_argument("--expected-freeze-sha256", required=True)
+    final_score.add_argument("--expected-prediction-sha256", required=True)
+    final_score.add_argument("--expected-outcome-file-sha256", required=True)
+    final_score.add_argument("--state-directory", type=Path, required=True)
+    final_score.add_argument("--acknowledge-unblind", action="store_true")
+    final_score.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.command in ("final-freeze", "final-predict", "final-score"):
+        if args.output.exists():
+            raise FileExistsError(args.output)
+        if args.command == "final-freeze":
+            data, manifest = load_snapshot(args.directory)
+            result = freeze_model(data, json.loads(args.receipt.read_text()), expected_protocol_sha256=args.expected_protocol_sha256)
+            result["development_snapshot_manifest"] = manifest
+        elif args.command == "final-predict":
+            import pandas as pd
+            result = predict_features(json.loads(args.freeze.read_text()), pd.read_csv(args.features),
+                                      expected_freeze_sha256=args.expected_freeze_sha256)
+        else:
+            if not args.acknowledge_unblind:
+                raise ValueError("Explicit unblind acknowledgement required before reading outcomes")
+            import pandas as pd
+            bundle, sealed = json.loads(args.freeze.read_text()), json.loads(args.predictions.read_text())
+            check_score_seals(bundle, sealed, expected_freeze_sha256=args.expected_freeze_sha256,
+                              expected_prediction_sha256=args.expected_prediction_sha256, state_directory=args.state_directory)
+            payload = args.outcomes.read_bytes()
+            if hashlib.sha256(payload).hexdigest() != args.expected_outcome_file_sha256:
+                raise ValueError("Outcome file hash mismatch")
+            data = pd.read_csv(args.outcomes)
+            result = score_once(bundle, sealed, data,
+                                expected_freeze_sha256=args.expected_freeze_sha256, expected_prediction_sha256=args.expected_prediction_sha256,
+                                expected_outcomes_sha256=frame_digest(data), state_directory=args.state_directory, acknowledge_unblind=True)
+            result["outcome_file_sha256"] = args.expected_outcome_file_sha256
+        with args.output.open("x", encoding="utf-8") as stream:
+            json.dump(result, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+        print(json.dumps({"output": str(args.output), "canonical_content_sha256": digest(result)}))
+        return result
     if args.command in ("uncertainty", "protocol-receipt", "holdout-timing-preflight"):
         if args.command == "uncertainty":
             payload = args.ledger.read_bytes()

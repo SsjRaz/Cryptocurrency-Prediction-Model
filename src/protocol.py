@@ -8,8 +8,9 @@ from pathlib import Path
 import pandas as pd
 
 from .snapshot import DAY, midnight, utc
+from .runtime import runtime_record
 
-SOURCES = ("baseline.py", "features.py", "snapshot.py", "targets.py", "ledger.py", "execution.py", "uncertainty.py", "protocol.py", "research.py")
+SOURCES = ("baseline.py", "features.py", "snapshot.py", "targets.py", "ledger.py", "execution.py", "uncertainty.py", "protocol.py", "research.py", "final_runner.py", "runtime.py")
 
 
 def protocol_receipt(protocol):
@@ -23,6 +24,7 @@ def protocol_receipt(protocol):
             "source_sha256": {p: hashlib.sha256(Path(__file__).with_name(p).read_bytes()).hexdigest() for p in SOURCES},
             "versions": {p: version(p) for p in ("numpy", "pandas", "scikit-learn")},
             "python": sys.version,
+            "runtime_lock": runtime_record(),
             "status": "receipt only; dependency lock and approval still required before final evaluation"}
 
 
