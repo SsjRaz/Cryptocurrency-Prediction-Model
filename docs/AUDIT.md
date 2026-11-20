@@ -151,3 +151,44 @@ future/holdout poisoning, independent longer-horizon fits/calibration, delayed
 lag/as-of, simulator scope/alignment rejection, append invariance/warm-up and
 invalid target rejection. Same external anyio pytest deprecation warning only.
 CLI help exposes explicit target selection; git diff --check clean.
+
+## Milestone 5: uncertainty and locked pre-holdout protocol
+
+Pre-change clean checkout at 2986742a288a4a97c3260c1985dc0f67b2551c37;
+main/feature remote refs verified. Existing 74 tests passed in 6.42s. New branch
+feat/preholdout-uncertainty starts at exact PR #5 head; no earlier work rewritten.
+
+Coordinator supplied separate verified-byte offline development aggregates at
+PR #5 code, documented with explicit attribution in
+SUPPLEMENTAL_DEVELOPMENT_RESULTS.md. These are not this Cloud executor's results.
+Here no denied transfer was retried, no ZIP obtained and no market uncertainty
+computed. Both logistic variants trail prior and neutral supplied probability
+scores, and the supplied strategy trails passive in each cost scenario. No
+attempt to tune models/thresholds to rescue the development result was made.
+Official Coinbase candle documentation was checked: open is a bucket's first
+trade, not evidence of a fill exactly at the bucket timestamp.
+
+Adds paired calibrated/raw-minus-prior daily Brier loss differences, fixed-seed
+7/14/28-day non-circular moving-block intervals, fold/date audit output, strict
+gap rejection or explicit independently-resampled contiguous segments, and
+finite-sample refusal without dropping short segments. No confidence interval
+is derived from rounded supplemental aggregates.
+
+Committed protocols/preholdout.json locks proposed target, dates, model/fold and
+calibration parameters, comparators, execution assumptions, scenarios, statistics
+and a predeclared success criterion. Receipt fingerprints source/config/environment;
+metadata-only holdout preflight rejects timing/fit-bound/drift violations and
+never reads outcomes/probabilities. It is not a final scoring runner or access
+authorization. Full dependency lock, complete final prediction-generation/coverage
+verification and independent review remain prerequisites. No actual 2025+ data,
+prices, prediction or score inspected or produced in this executor.
+
+Final local verification: 101 passed in 6.92s (Python 3.12), one external anyio
+pytest deprecation warning. New 27 synthetic cases cover independent block-draw
+oracle, paired counts/sign, constant/zero differences, gap segmentation/short
+segments, sensitivity, empty samples, duplicate/mixed/holdout/invalid outcomes,
+deterministic seed, protocol drift and metadata-only invariance, late training
+and calibration labels, timing/gap/frozen-fit rejection, receipt and CLI paths.
+CLI receipt generated without accessing market data and retained in
+protocols/preholdout-receipt.json. It records this local numeric environment;
+it is not a complete transitive dependency lock or final-run authorization.

@@ -8,6 +8,8 @@ from .baseline import walk_forward
 from .ledger import forecast_ledger
 from .execution import DEFAULT_SCENARIOS, simulate
 from .targets import CLOSE_TARGET, OPEN_TARGET
+from .uncertainty import paired_uncertainty
+from .protocol import protocol_receipt, audit_holdout_timing
 from .snapshot import acquire, development_only, load_snapshot, save_snapshot
 
 
@@ -42,7 +44,34 @@ def main():
     execute.add_argument("--initial-quote", type=float, default=1000.)
     execute.add_argument("--scenarios", type=Path, help="Predetermined JSON list of named cost/threshold scenarios")
     execute.add_argument("--output", type=Path, required=True)
+    uncertainty = sub.add_parser("uncertainty")
+    uncertainty.add_argument("--ledger", type=Path, required=True)
+    uncertainty.add_argument("--output", type=Path, required=True)
+    uncertainty.add_argument("--gap-policy", choices=("reject", "segments"), default="reject")
+    receipt = sub.add_parser("protocol-receipt")
+    receipt.add_argument("protocol", type=Path)
+    receipt.add_argument("--output", type=Path, required=True)
+    audit = sub.add_parser("holdout-timing-preflight", help="Metadata-only validator; no scoring or forecast generation")
+    audit.add_argument("--metadata", type=Path, required=True)
+    audit.add_argument("--receipt", type=Path, required=True)
+    audit.add_argument("--expected-protocol-sha256", required=True)
+    audit.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.command in ("uncertainty", "protocol-receipt", "holdout-timing-preflight"):
+        if args.command == "uncertainty":
+            payload = args.ledger.read_bytes()
+            result = paired_uncertainty(json.loads(payload), gap_policy=args.gap_policy)
+            result["forecast_report_sha256"] = hashlib.sha256(payload).hexdigest()
+        elif args.command == "protocol-receipt":
+            result = protocol_receipt(json.loads(args.protocol.read_text()))
+        else:
+            result = audit_holdout_timing(json.loads(args.metadata.read_text()), json.loads(args.receipt.read_text()),
+                                         expected_protocol_sha256=args.expected_protocol_sha256)
+        with args.output.open("x", encoding="utf-8") as stream:
+            json.dump(result, stream, indent=2, allow_nan=False)
+            stream.write("\n")
+        print(json.dumps({"output": str(args.output)}))
+        return result
     if args.command == "acquire":
         from .data import _make_exchange
         frame, quality = acquire(_make_exchange(), start=args.start, end=args.end, as_of=args.as_of)
