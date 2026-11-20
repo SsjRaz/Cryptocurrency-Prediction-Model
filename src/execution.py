@@ -82,6 +82,9 @@ def simulate(frame, frozen_ledger, *, holdout_start, as_of, window_start, termin
     expected = pd.Series(pd.date_range(start, terminal, freq="D"), name="timestamp")
     if not bars.timestamp.equals(expected):
         raise ValueError("Missing or out-of-bound window opens; no gap bridging")
+    target_names = {row.get("target_name", "close_direction") for row in frozen_ledger}
+    if len(target_names) > 1:
+        raise ValueError("Mixed target scopes cannot share an execution report")
     orders, accepted, occupied = [], [], set()
     for row in frozen_ledger:
         feature = midnight(row["feature_open_utc"])
@@ -109,13 +112,18 @@ def simulate(frame, frozen_ledger, *, holdout_start, as_of, window_start, termin
                 if not np.isfinite(row[method]) or not 0 <= row[method] <= 1:
                     raise ValueError("Invalid frozen probability")
             accepted.append((permitted, row))
-        label_close = feature + 2 * DAY
+        label_close = utc(row.get("label_exit_utc", feature + 2 * DAY))
+        if status == "accepted" and row.get("target_name") == "execution_open_direction":
+            if utc(row["label_entry_utc"]) != permitted or label_close != permitted + DAY:
+                raise ValueError("Execution target and permitted opens disagree")
         orders.append({"feature_open_utc": feature.isoformat(), "decision_utc": decision.isoformat(),
                        "candle_available_utc": available.isoformat(),
                        "permitted_open_utc": permitted.isoformat(), "status": status,
                        "decision_to_open_seconds": (permitted - decision).total_seconds(),
-                       "original_target_close_utc": label_close.isoformat(),
+                       "target_exit_utc": label_close.isoformat(),
+                       "original_target_close_utc": (feature + 2 * DAY).isoformat(),
                        "target_expired_at_entry": permitted >= label_close,
+                       "target_name": row.get("target_name", "close_direction"),
                        "probabilities": {m: float(row[m]) for m in METHODS} if status == "accepted" else None,
                        "source_fold": row.get("fold"), "calibrated": row.get("calibrated")})
     results, names = [], set()
@@ -145,9 +153,11 @@ def simulate(frame, frozen_ledger, *, holdout_start, as_of, window_start, termin
             "terminal_rule": "liquidate at terminal open with sell fee/slippage; reject new positions",
             "window_opens": len(bars), "accepted_signals": len(accepted),
             "orders": orders, "scenarios": results,
+            "target_name": next(iter(target_names), "unspecified_empty_ledger"),
             "horizon_limitation": {"accepted_at_or_after_original_target_close": sum(stamp >= utc(row["feature_open_utc"]) + 2 * DAY for stamp, row in accepted),
+                                   "accepted_at_or_after_target_exit": sum(stamp >= utc(row.get("label_exit_utc", utc(row["feature_open_utc"]) + 2 * DAY)) for stamp, row in accepted),
                                    "accepted_signals": len(accepted),
-                                   "interpretation": "forecast direction scores do not measure executable strategy returns"},
+                                   "interpretation": "target scope is separate; classification scores do not include costs or establish executable returns"},
             "market_window_sha256": hashlib.sha256(bars.to_csv(index=False).encode()).hexdigest(),
             "frozen_ledger_sha256": hashlib.sha256(json.dumps(frozen_ledger, sort_keys=True, allow_nan=False).encode()).hexdigest(),
             "execution_code_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}

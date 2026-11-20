@@ -7,6 +7,7 @@ from pathlib import Path
 from .baseline import walk_forward
 from .ledger import forecast_ledger
 from .execution import DEFAULT_SCENARIOS, simulate
+from .targets import CLOSE_TARGET, OPEN_TARGET
 from .snapshot import acquire, development_only, load_snapshot, save_snapshot
 
 
@@ -25,6 +26,7 @@ def main():
     replay.add_argument("--splits", type=int, default=5)
     ledger = sub.add_parser("ledger")
     ledger.add_argument("directory", type=Path)
+    ledger.add_argument("--target", choices=(CLOSE_TARGET, OPEN_TARGET), default=CLOSE_TARGET)
     ledger.add_argument("--holdout-start", required=True)
     ledger.add_argument("--as-of", required=True)
     ledger.add_argument("--min-train", type=int, default=80)
@@ -62,6 +64,7 @@ def main():
         result["snapshot_manifest"] = manifest
         result["forecast_report_sha256"] = hashlib.sha256(payload).hexdigest()
         result["forecast_code_sha256"] = frozen["code_sha256"]
+        result["target_name"] = frozen["protocol"].get("target_name", CLOSE_TARGET)
         result["data_kind"] = frozen["source_kind"]
         with args.output.open("x", encoding="utf-8") as stream:
             json.dump(result, stream, indent=2, allow_nan=False)
@@ -74,7 +77,7 @@ def main():
                                  lag_seconds=manifest["availability_lag_seconds_assumed"],
                                  min_train=args.min_train, test_size=args.test_size,
                                  min_calibration=args.min_calibration,
-                                 snapshot_sha256=manifest["sha256"], source_kind="retrospective_public_snapshot")
+                                 snapshot_sha256=manifest["sha256"], source_kind="retrospective_public_snapshot", target=args.target)
         result["snapshot_manifest"] = manifest
         # Exclusive creation protects a prior research result from accidental replacement.
         with args.output.open("x", encoding="utf-8") as stream:

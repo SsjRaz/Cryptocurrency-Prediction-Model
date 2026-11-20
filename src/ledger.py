@@ -10,8 +10,9 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 from .baseline import _model, _scores
-from .features import FEATURE_COLUMNS, labeled_daily
+from .features import FEATURE_COLUMNS
 from .snapshot import DAY, development_only, utc
+from .targets import CLOSE_TARGET, OPEN_TARGET, target_data
 
 METHODS = ("prior", "persistence", "neutral", "logistic_raw", "logistic_calibrated")
 EPS = 1e-6
@@ -60,7 +61,7 @@ def diagnostics(rows, methods=METHODS):
 
 def forecast_ledger(frame, *, holdout_start, as_of, lag_seconds=60,
                     min_train=80, test_size=30, min_calibration=30,
-                    snapshot_sha256=None, source_kind="synthetic"):
+                    snapshot_sha256=None, source_kind="synthetic", target=CLOSE_TARGET):
     """Fixed anchored blocks: future length cannot move earlier fold boundaries.
 
     Model and calibrator freeze at the first decision of each block. No
@@ -70,17 +71,16 @@ def forecast_ledger(frame, *, holdout_start, as_of, lag_seconds=60,
         raise ValueError("Invalid training, block or calibration size")
     cutoff = utc(as_of)
     dev = development_only(frame, holdout_start=holdout_start, as_of=cutoff, lag_seconds=lag_seconds)
-    data = labeled_daily(dev)
+    data, purge_prefix = target_data(dev, target=target, lag_seconds=lag_seconds)
     lag = pd.Timedelta(seconds=lag_seconds)
     data["decision"] = data.timestamp + DAY + lag
-    data["maturity"] = data.timestamp + 2 * DAY + lag
     data = data.loc[data.maturity <= cutoff].reset_index(drop=True)
-    if len(data) <= min_train + 1:
+    if len(data) <= min_train + purge_prefix:
         raise ValueError("Insufficient development data for an OOF block")
     rows, folds = [], []
     x = data.loc[:, FEATURE_COLUMNS].to_numpy(dtype=float)
     y = data.target_up.to_numpy(dtype=int)
-    for fold, begin in enumerate(range(min_train + 1, len(data), test_size), 1):
+    for fold, begin in enumerate(range(min_train + purge_prefix, len(data), test_size), 1):
         end = min(begin + test_size, len(data))
         freeze = data.loc[begin, "decision"]
         train = np.flatnonzero((data.index < begin) & (data.maturity < freeze))
@@ -117,8 +117,13 @@ def forecast_ledger(frame, *, holdout_start, as_of, lag_seconds=60,
             block.append({**metadata, "feature_open_utc": data.loc[i, "timestamp"].isoformat(),
                           "candle_available_utc": data.loc[i, "decision"].isoformat(),
                           "decision_utc": data.loc[i, "decision"].isoformat(),
-                          "label_close_utc": (data.loc[i, "timestamp"] + 2 * DAY).isoformat(),
+                          "target_name": target,
+                          "label_entry_utc": data.loc[i, "label_entry"].isoformat(),
+                          "label_exit_utc": data.loc[i, "label_exit"].isoformat(),
+                          **({"label_close_utc": data.loc[i, "label_exit"].isoformat()} if target == CLOSE_TARGET else {}),
                           "label_maturity_utc": data.loc[i, "maturity"].isoformat(),
+                          **({"label_entry_reference_open": float(data.loc[i, "label_entry_reference_open"]),
+                              "label_exit_reference_open": float(data.loc[i, "label_exit_reference_open"])} if target == OPEN_TARGET else {}),
                           "target_up": int(y[i]), "prior": prior, "neutral": .5,
                           "persistence": float(np.clip(int(data.loc[i, "return_1d"] > 0), EPS, 1 - EPS)),
                           "logistic_raw": float(predictions[offset]),
@@ -126,7 +131,7 @@ def forecast_ledger(frame, *, holdout_start, as_of, lag_seconds=60,
                           "calibrated": calibrator is not None and raw_model is not None})
         rows.extend(block)
     paired = [r for r in rows if r["calibrated"]]
-    code_hash = hashlib.sha256(b"".join(Path(__file__).with_name(p).read_bytes() for p in ("ledger.py", "baseline.py", "features.py", "snapshot.py", "research.py"))).hexdigest()
+    code_hash = hashlib.sha256(b"".join(Path(__file__).with_name(p).read_bytes() for p in ("ledger.py", "baseline.py", "features.py", "snapshot.py", "research.py", "targets.py"))).hexdigest()
     canonical = dev.copy()
     numeric = ["open", "high", "low", "close", "volume"]
     canonical[numeric] = canonical[numeric].astype(float)
@@ -135,7 +140,9 @@ def forecast_ledger(frame, *, holdout_start, as_of, lag_seconds=60,
             "development_sha256": hashlib.sha256(canonical.to_csv(index=False).encode()).hexdigest(),
             "code_sha256": code_hash,
             "software_versions": {name: version(name) for name in ("numpy", "pandas", "scikit-learn")},
-            "protocol": {"holdout_start": str(holdout_start), "as_of": cutoff.isoformat(),
+            "protocol": {"target_name": target,
+                         "label_maturity_rule": "exit candle completed + lag" if target == OPEN_TARGET else "target close + lag",
+                         "holdout_start": str(holdout_start), "as_of": cutoff.isoformat(),
                          "lag_seconds_assumed": lag_seconds, "min_train": min_train,
                          "test_size": test_size, "min_calibration": min_calibration,
                          "calibration": "L2 logistic on logit(raw past OOF), C=1; strictly matured before fold freeze",
