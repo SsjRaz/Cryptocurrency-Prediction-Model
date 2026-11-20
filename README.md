@@ -127,3 +127,9 @@ A distinct [execution-aligned target](docs/EXECUTION_ALIGNED_TARGET.md) is avail
 with `ledger --target execution_open_direction`. The original `close_direction`
 remains the default. Results belong to separate target scopes; real uploaded-data
 execution remains blocked in this Cloud executor pending supported byte delivery.
+
+[Supplemental development results](docs/SUPPLEMENTAL_DEVELOPMENT_RESULTS.md) are
+attributed to a separate offline executor; they show underperformance, not edge.
+The [locked pre-holdout protocol](docs/PREHOLDOUT_PROTOCOL.md) adds matched Brier
+loss block uncertainty and metadata-only holdout timing checks, without opening
+or scoring final data.
