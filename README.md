@@ -103,3 +103,12 @@ tests/
 .github/workflows/
   tests.yml
 ```
+
+## Snapshot and holdout protocol
+
+Start with [the research protocol](docs/RESEARCH_PROTOCOL.md) and
+[pre-change audit and evidence](docs/AUDIT.md). Prefer `python -m src.research`
+for strict immutable snapshots and development-only replay. Existing
+`python -m src.main` examples above now additionally require
+`--holdout-start 2025-01-01T00:00:00Z`; all modes exclude the reserved period.
+Historical candle availability is assumed, not historically verified.
