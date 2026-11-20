@@ -121,3 +121,33 @@ User-requested strict 2020–2024 development snapshot is not yet available.
 No repeated DNS probe or network workaround. Real provider/fill validation,
 exchange size constraints, intraday risk, dependency locking, uncertainty and
 honest untouched final evaluation remain outstanding. Final holdout unscored.
+
+## Milestone 4: separate target and exact uploaded-file blocker
+
+Pre-change checkout clean at PR #4 head 77b3bc8ea5ebefddb42a2861b886392af8ce8940;
+remote target/main refs verified; existing 67 tests passed in 4.50s. New branch
+feat/execution-aligned-target starts there, preserving all earlier branches.
+
+Only the specifically authorized uploaded Library reference was materialized
+using the skill's resolved-reference route, consumer-local destination and
+expected ZIP checksum. Transfer preparation succeeded, helper download failed
+`proxy tunnel HTTP 403`; exact destination ZIP is absent. No bytes were received,
+extracted or verified here; **no real-data evaluation was performed**. Expected
+digests and reproducible future evaluation instructions are recorded in
+EXECUTION_ALIGNED_TARGET.md. Parent verification is identified as parent evidence,
+not claimed as this executor's run. No URL probing, storage search, new acquisition
+or publication of raw attachment occurred.
+
+Adds optional distinct open-to-open target with explicit entry/exit prices and
+conservative full-exit-candle maturity. Strict train purge grows from one to
+three observations at the default lag; calibration uses longer maturity too.
+Original target remains default. Simulator checks alignment and rejects mixed
+scopes; reports separate original-horizon and selected-horizon expiry counts.
+Validation remains synthetic only. Final holdout remains unscored.
+
+Final local validation: 74 tests passed in 6.60s on Python 3.12; 7 added
+aligned-target cases cover audit prices/times, unchanged default original target,
+future/holdout poisoning, independent longer-horizon fits/calibration, delayed
+lag/as-of, simulator scope/alignment rejection, append invariance/warm-up and
+invalid target rejection. Same external anyio pytest deprecation warning only.
+CLI help exposes explicit target selection; git diff --check clean.

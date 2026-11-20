@@ -122,3 +122,8 @@ long/cash simulation, next-permitted-open timing, explicit fee/slippage and
 same-window cash/buy-and-hold comparisons. The current forecast price horizon
 has elapsed by that daily-open proxy; simulated accounting does not validate
 an executable forecasting edge.
+
+A distinct [execution-aligned target](docs/EXECUTION_ALIGNED_TARGET.md) is available
+with `ledger --target execution_open_direction`. The original `close_direction`
+remains the default. Results belong to separate target scopes; real uploaded-data
+execution remains blocked in this Cloud executor pending supported byte delivery.
