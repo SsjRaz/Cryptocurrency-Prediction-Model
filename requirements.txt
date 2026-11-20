@@ -1,4 +1,5 @@
-ccxt
-pandas
-numpy
-python-dotenv
+# Supported Python: 3.11+ (bounds prevent silent major-version drift)
+ccxt>=4.4,<5
+pandas>=2.1,<3
+numpy>=1.26,<3
+scikit-learn>=1.5,<2
