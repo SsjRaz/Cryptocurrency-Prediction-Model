@@ -192,3 +192,87 @@ and calibration labels, timing/gap/frozen-fit rejection, receipt and CLI paths.
 CLI receipt generated without accessing market data and retained in
 protocols/preholdout-receipt.json. It records this local numeric environment;
 it is not a complete transitive dependency lock or final-run authorization.
+
+## Milestone 6: frozen final runner and verified dependency/runtime lock
+
+Clean baseline at ff3f72fd0d7391f48ffa6478f411743bb6b2a613 verified against
+remote (main unchanged); 101 tests passed in 6.89s before edits. New branch
+feat/frozen-final-runner starts at exact PR #6 head; earlier PRs preserved.
+
+Adds pre-boundary matured-label scaler/model fit, earlier-OOF-only fitted
+calibrator, JSON frozen arrays, feature-only sealed predictions, hash-bound
+explicit scoring, local exclusive attempt/completion records and identical
+361-row final model/prior support. Original protocol dates/criteria unchanged.
+Full final report includes fixed-cost same-window passive/cash diagnostics,
+loss/calibration metrics, block sensitivity and the predeclared statistical
+criterion. Any absence of a valid final calibrator fails closed, not fallback.
+
+Reference environment CPython 3.12.14 Linux x86_64: pip-tools 7.7.0/pip 26.3
+resolved requirements-final.lock with transitive hashes. Initial default cache
+was read-only; redirected cache to /tmp and compilation succeeded. Downloaded
+binary wheels with --require-hashes; installed into a clean no-system-site venv
+with --no-index/--require-hashes. pip check: no broken requirements. Exact wheel
+inventory/hash/size recorded in runtime/reference-wheelhouse.json; binaries
+not committed. Runtime guard checks interpreter patch, platform and every pin.
+Python binary/container/OS/CPU reproducibility and other platforms are not
+fully locked. Normal baseline runtime skips reference-only final tests when
+not matching; a dedicated exact-Python/hash-locked CI job covers the full suite.
+
+Final locked-suite run: 119 passed in 13.69s, no warnings; git diff --check clean.
+18 added cases cover independent scaler prefix, fixed parameters despite late
+context/target poison, future feature/target causality, no fit in prediction or
+scoring, full synthetic CLI and 361-row domains, identical primary support,
+cost benchmark windows, malformed/overlapping/incomplete/empty inputs, failed
+and repeated local attempts, drift/late labels, wrong hashes/overlap and runtime
+lock guardrails. Existing synthetic pipeline tests remain green.
+
+No real 2025+ acquisition, inspection, fitting, prediction or scoring occurred.
+No development attachment transfer was retried or requested. The exact later
+outcome interval is [2025-01-01,2025-12-31) UTC (364 candles; last open Dec 30),
+with a 361-candle feature prefix through Dec 27 and existing 2024 Dec 18–31
+context. No 2026 warm-up/terminal padding is necessary. See
+FROZEN_FINAL_RUNNER.md for precise gates and remaining independent review.
+
+Old receipts remain historical and are invalid for changed source; new
+protocols/final-runner-receipt.json fingerprints this clean reference runtime
+and final source bytes before any unblinding. Human/infrastructure protection
+is still required: deleting local markers or changing directories/hashes can
+bypass guards. No global one-evaluation guarantee is claimed.
+
+Initial remote run 44812280660 at 00f7e705 failed before scheduling jobs:
+plain YAML scalar contained the colon-space in --only-binary=:all:. Local
+YAML parsing reproduced the exact error at workflow line 33. Corrected the
+install command to a block scalar and parsed/checked both jobs locally. No
+runner, dependency lock or frozen receipt source changed in this correction.
+
+## PR #7 independent-audit blockers, before any unblinding
+
+Continued on the existing clean feat/frozen-final-runner at c587b097, preserving
+all prior commits/branches/main. Fixed two independently identified TOCTOU gaps:
+final-score and load_snapshot now parse the exact authenticated byte buffer,
+not a reopened CSV pathname. Added explicit independent development CSV and
+reference-manifest pins; production reference is receipt-bound to the approved
+2020–2024 Coinbase BTC/USD daily bytes, with exact coverage/identity/lag. An
+explicit synthetic mode keeps fixture reuse separate from production approval.
+The lower-level freeze API requires an expected frame identity too. Receipt and
+protocol drift checks run before CLI development loading/fitting.
+
+Changed completion lifecycle: attempt and directory durable before metrics;
+requested report written exclusively and file/parent fsynced before a completion
+record is created. Completion hashes exact final report bytes/content, including
+raw outcome-file identity. Report write/fsync failures cannot claim completion;
+attempts remain for manual recovery, with no automated rescore. Local marker
+bypass and non-atomic report/completion crash windows remain documented.
+
+New synthetic regression tests swap mutable CSV paths after authentication,
+including last three outcome-only rows; verify pinned manifest fields and
+self-consistent substitute rejection; require explicit non-production mode; and
+inject report-write/fsync failures. No real 2025+ input was fetched, inspected,
+fitted or scored; no attachment transfer/recovery workaround. Holdout remains
+strictly blocked pending independent re-review and any additional audit issues.
+
+Final locked validation after audit corrections: 131 passed in 15.62s, no
+warnings. Added 12 focused regression cases; no full-runtime lock change.
+Rebuilt protocols/final-runner-receipt.json and independently checked equality
+to current protocol_receipt output, including the approved development-reference
+hash. git diff --check clean. No real holdout execution occurred.

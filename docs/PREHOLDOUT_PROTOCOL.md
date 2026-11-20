@@ -6,9 +6,9 @@ The proposed final window is 2025-01-01 through 2026-01-01 exclusive, with the
 execution-aligned target as primary and original-close results diagnostic only.
 Final model and calibrator are to be frozen strictly before the holdout begins,
 with no within-holdout updates. This differs explicitly from expanding
-*development* folds; it prevents final-year adaptive fitting. The final fitting
-and scoring runner is not implemented in this checkpoint. Only a strict
-metadata timing preflight exists; no real holdout command has been run.
+*development* folds; it prevents final-year adaptive fitting. The subsequent [frozen final runner](FROZEN_FINAL_RUNNER.md) implements fitting,
+feature-only prediction and guarded scoring, verified only with synthetic data.
+No real holdout command has been run. The locked state still grants no access.
 
 ## Statistical estimand and algorithm
 
@@ -92,7 +92,7 @@ features/logistic/scaling/calibration rules, comparators, dates, warm-up handlin
 threshold, execution/terminal rules and cost assumptions; lock dependencies;
 freeze scripts/reporting/success criterion with the receipt; authorize exactly
 one evaluation; record the untouched snapshot identity and checksum **before**
-metrics; implement/review the final fitting/scoring runner and expected complete
+metrics; independently review the final fitting/scoring runner and its complete
 row coverage. Costs/passive/cash must share identical feasible dates. Never
 retune after seeing holdout results, even if the result is underperformance.
 No 2025+ input, acquisition, inspection or score has occurred in this executor.

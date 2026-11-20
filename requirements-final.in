@@ -1,0 +1,7 @@
+# Reference runtime CPython 3.12.14, Linux x86_64. No model changes.
+ccxt==4.5.93
+numpy==2.3.5
+pandas==2.2.3
+scipy==1.17.0
+scikit-learn==1.8.0
+pytest==9.2.0

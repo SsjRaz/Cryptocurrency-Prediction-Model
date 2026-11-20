@@ -124,3 +124,37 @@ def test_cli_requires_holdout_and_excludes_it(tmp_path, capsys):
                    "--as-of", frame.timestamp.iloc[-1].isoformat(), "--mode", "backtest", "--splits", "3"])
     assert result["backtest"]["rows_labeled"] == 145
     assert result["backtest"]["folds"][-1]["test_end_utc"] == frame.timestamp.iloc[158].isoformat()
+
+
+def test_authenticated_snapshot_bytes_not_mutable_path(tmp_path, monkeypatch):
+    import io
+    import hashlib
+    frame, _ = acquire(Provider([bars()]), start=START, end=END, as_of=AS_OF)
+    path = tmp_path / "snapshot"
+    manifest = save_snapshot(path, frame, start=START, end=END, as_of=AS_OF)
+    original_reader = pd.read_csv
+    replacement = frame.copy()
+    replacement[["open", "high", "low", "close"]] *= 2
+    replacement_bytes = replacement.to_csv(index=False).encode()
+    def swap_during_parse(stream, *args, **kwargs):
+        assert isinstance(stream, io.BytesIO)
+        (path / "candles.csv").write_bytes(replacement_bytes)
+        return original_reader(stream, *args, **kwargs)
+    monkeypatch.setattr(pd, "read_csv", swap_during_parse)
+    loaded, actual = load_snapshot(path, expected_csv_sha256=manifest["sha256"], expected_manifest=manifest)
+    pd.testing.assert_frame_equal(loaded, frame)
+    assert actual == manifest
+    # A self-consistent replacement manifest must not defeat the independent pin.
+    replacement_manifest = {**manifest, "sha256": hashlib.sha256(replacement_bytes).hexdigest()}
+    (path / "manifest.json").write_text(json.dumps(replacement_manifest))
+    with pytest.raises(ValueError, match="Independently pinned"):
+        load_snapshot(path, expected_csv_sha256=manifest["sha256"], expected_manifest=manifest)
+
+
+@pytest.mark.parametrize("field,value", [("source", "other"), ("symbol", "ETH/USD"), ("timeframe", "1h"), ("start", "2020-01-01T00:00:00+00:00"), ("availability_lag_seconds_assumed", 61), ("rows", 4)])
+def test_reference_manifest_fields_are_pinned(tmp_path, field, value):
+    frame, _ = acquire(Provider([bars()]), start=START, end=END, as_of=AS_OF)
+    path = tmp_path / "snapshot"
+    manifest = save_snapshot(path, frame, start=START, end=END, as_of=AS_OF)
+    with pytest.raises(ValueError, match="Reference manifest"):
+        load_snapshot(path, expected_csv_sha256=manifest["sha256"], expected_manifest={**manifest, field: value})

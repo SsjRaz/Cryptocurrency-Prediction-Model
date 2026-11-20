@@ -8,8 +8,9 @@ from pathlib import Path
 import pandas as pd
 
 from .snapshot import DAY, midnight, utc
+from .runtime import runtime_record
 
-SOURCES = ("baseline.py", "features.py", "snapshot.py", "targets.py", "ledger.py", "execution.py", "uncertainty.py", "protocol.py", "research.py")
+SOURCES = ("baseline.py", "features.py", "snapshot.py", "targets.py", "ledger.py", "execution.py", "uncertainty.py", "protocol.py", "research.py", "final_runner.py", "runtime.py")
 
 
 def protocol_receipt(protocol):
@@ -18,11 +19,14 @@ def protocol_receipt(protocol):
         raise ValueError("Protocol must remain locked; no evaluation authorized")
     if protocol["target_name"] != "execution_open_direction" or midnight(protocol["holdout_start"]) >= midnight(protocol["holdout_end_exclusive"]):
         raise ValueError("Invalid frozen target or dates")
+    approved_reference = json.loads((Path(__file__).resolve().parents[1] / "protocols" / "approved-development.json").read_bytes())
     return {"protocol": protocol,
+            "approved_development_reference_sha256": hashlib.sha256(json.dumps(approved_reference, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
             "protocol_sha256": hashlib.sha256(json.dumps(protocol, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
             "source_sha256": {p: hashlib.sha256(Path(__file__).with_name(p).read_bytes()).hexdigest() for p in SOURCES},
             "versions": {p: version(p) for p in ("numpy", "pandas", "scikit-learn")},
             "python": sys.version,
+            "runtime_lock": runtime_record(),
             "status": "receipt only; dependency lock and approval still required before final evaluation"}
 
 

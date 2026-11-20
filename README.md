@@ -133,3 +133,8 @@ attributed to a separate offline executor; they show underperformance, not edge.
 The [locked pre-holdout protocol](docs/PREHOLDOUT_PROTOCOL.md) adds matched Brier
 loss block uncertainty and metadata-only holdout timing checks, without opening
 or scoring final data.
+
+The [frozen final runner](docs/FROZEN_FINAL_RUNNER.md) provides hash-bound frozen
+model/feature-only prediction/scoring stages and a verified reference dependency
+lock. This milestone ran the full workflow on synthetic fixtures only; final
+holdout access and evaluation still require separate authorization and audit.
